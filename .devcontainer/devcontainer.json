@@ -1,0 +1,60 @@
+{
+    "name": "Marketplace Platform (Phase 0)",
+    "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "version": "latest",
+            "moby": true,
+            "dockerDashComposeVersion": "v2"
+        },
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+
+    "forwardPorts": [8000, 5173, 8025, 7700, 9001, 9000, 5432, 6379],
+
+    "portsAttributes": {
+        "8000": {
+            "label": "Storefront (Inertia welcome page)",
+            "onAutoForward": "openPreview"
+        },
+        "5173": { "label": "Vite HMR" },
+        "8025": { "label": "Mailpit (captured emails)" },
+        "7700": { "label": "Meilisearch" },
+        "9001": { "label": "MinIO console" },
+        "9000": { "label": "MinIO S3 API" },
+        "5432": { "label": "PostgreSQL" },
+        "6379": { "label": "Redis" }
+    },
+
+    "postCreateCommand": "echo '' && echo '======================================================' && echo 'Marketplace Phase 0 Codespace ready.' && echo '' && echo 'To start the platform, run:' && echo '' && echo '    make install' && echo '' && echo '(takes ~3-5 minutes the first time)' && echo '======================================================'  && echo ''",
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "bmewburn.vscode-intelephense-client",
+                "onecentlin.laravel-blade",
+                "dbaeumer.vscode-eslint",
+                "esbenp.prettier-vscode",
+                "bradlc.vscode-tailwindcss",
+                "ms-azuretools.vscode-docker",
+                "EditorConfig.EditorConfig",
+                "redhat.vscode-yaml",
+                "GitHub.vscode-pull-request-github"
+            ],
+            "settings": {
+                "editor.formatOnSave": false,
+                "files.eol": "\n",
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    },
+
+    "remoteUser": "codespace",
+
+    "hostRequirements": {
+        "cpus": 2,
+        "memory": "8gb",
+        "storage": "32gb"
+    }
+}

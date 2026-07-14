@@ -1,0 +1,71 @@
+name: Generate Lock Files
+
+# Triggered manually from the GitHub Actions tab
+# (Click "Run workflow" on the right side of the page)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # Required to commit lock files back
+
+jobs:
+  generate:
+    name: Generate composer.lock + package-lock.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, intl, redis, zip, bcmath, gd, curl, mbstring
+          tools: composer:v2
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate composer.lock
+        run: |
+          echo "Resolving PHP dependencies and writing composer.lock..."
+          composer update --lock --no-scripts --no-interaction --no-progress
+          ls -lh composer.lock
+
+      - name: Generate package-lock.json
+        run: |
+          echo "Resolving npm dependencies and writing package-lock.json..."
+          npm install --package-lock-only --no-audit --no-fund
+          ls -lh package-lock.json
+
+      - name: Summary
+        run: |
+          echo "## Lock Files Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f composer.lock ]; then
+            echo "- composer.lock ($(wc -l < composer.lock) lines)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f package-lock.json ]; then
+            echo "- package-lock.json ($(wc -l < package-lock.json) lines)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Commit lock files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock package-lock.json
+          if git diff --cached --quiet; then
+            echo "No lock file changes to commit (already up to date)."
+            echo "### Locks already up to date" >> $GITHUB_STEP_SUMMARY
+          else
+            git commit -m "chore: generate dependency lock files [skip ci]"
+            git push
+            echo "### Lock files committed and pushed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Future CI runs will use strict reproducible installs." >> $GITHUB_STEP_SUMMARY
+          fi

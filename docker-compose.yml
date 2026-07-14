@@ -1,0 +1,151 @@
+name: marketplace
+
+services:
+  # ───────────────────────────── App container ───────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: marketplace_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - app_vendor:/var/www/html/vendor
+      - app_node_modules:/var/www/html/node_modules
+    ports:
+      - "8000:80"
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    networks:
+      - marketplace
+
+  # ─────────────────────────── Vite dev server ──────────────────────────
+  vite:
+    image: node:20-alpine
+    container_name: marketplace_vite
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - app_node_modules:/var/www/html/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+    networks:
+      - marketplace
+
+  # ────────────────────────────── PostgreSQL ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketplace_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Runs once on first cluster init — creates marketplace_testing DB
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketplace -d marketplace"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - marketplace
+
+  # ─────────────────────────────── Redis ────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: marketplace_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - marketplace
+
+  # ──────────────────────────── Meilisearch ────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: marketplace_meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: masterKey
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - marketplace
+
+  # ─────────────────────────────── Mailpit ──────────────────────────────
+  # SMTP catcher with a web UI — http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: marketplace_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - marketplace
+
+  # ──────────────────────────────── MinIO ───────────────────────────────
+  # S3/R2-compatible local storage for development.
+  # Console: http://localhost:9001 (login: minioadmin / minioadmin)
+  minio:
+    image: minio/minio:latest
+    container_name: marketplace_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - marketplace
+
+volumes:
+  postgres_data:
+  redis_data:
+  meilisearch_data:
+  minio_data:
+  app_vendor:
+  app_node_modules:
+
+networks:
+  marketplace:
+    driver: bridge

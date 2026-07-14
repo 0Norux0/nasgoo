@@ -1,0 +1,41 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "strict": true,
+        "noImplicitAny": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "skipLibCheck": true,
+        "noEmit": true,
+        "allowJs": true,
+        // v5.6 — baseUrl is deprecated in TS 5.x (TS5101) and removed in TS 7.
+        // Since TS 4.1, `paths` works standalone using tsconfig's directory as
+        // the implicit base, so we drop baseUrl entirely instead of suppressing
+        // the warning with ignoreDeprecations. Cleaner and forward-compatible.
+        "paths": {
+            "@/*": ["./resources/js/*"]
+        }
+    },
+    "include": [
+        "resources/js/**/*.ts",
+        "resources/js/**/*.tsx",
+        "resources/js/**/*.d.ts",
+        "vite.config.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "vendor",
+        "public/build"
+    ]
+}

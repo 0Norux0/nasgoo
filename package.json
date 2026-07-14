@@ -1,0 +1,45 @@
+{
+    "name": "marketplace-frontend",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc --noEmit && vite build",
+        "build:ssr": "vite build && vite build --ssr",
+        "lint": "eslint \"resources/js/**/*.{ts,tsx}\" --max-warnings 0",
+        "lint:fix": "eslint \"resources/js/**/*.{ts,tsx}\" --fix",
+        "format": "prettier --write \"resources/js/**/*.{ts,tsx,css}\"",
+        "format:check": "prettier --check \"resources/js/**/*.{ts,tsx,css}\"",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@types/node": "^20.12.0",
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "@typescript-eslint/eslint-plugin": "^7.16.0",
+        "@typescript-eslint/parser": "^7.16.0",
+        "@vitejs/plugin-react": "^4.3.1",
+        "autoprefixer": "^10.4.19",
+        "axios": "^1.7.2",
+        "concurrently": "^8.2.2",
+        "eslint": "^8.57.0",
+        "eslint-plugin-react": "^7.34.3",
+        "eslint-plugin-react-hooks": "^4.6.2",
+        "laravel-vite-plugin": "^1.0.4",
+        "postcss": "^8.4.39",
+        "prettier": "^3.3.2",
+        "prettier-plugin-tailwindcss": "^0.6.5",
+        "tailwindcss": "^3.4.6",
+        "typescript": "^5.5.3",
+        "vite": "^5.3.3"
+    },
+    "dependencies": {
+        "@inertiajs/react": "^2.0.0",
+        "clsx": "^2.1.1",
+        "lucide-react": "^1.24.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "tailwind-merge": "^2.3.0",
+        "zustand": "^4.5.4"
+    }
+}
