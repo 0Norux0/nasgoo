@@ -7,9 +7,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\Settings\HomepageSectionRegistry;
 use App\Services\Settings\SiteSettingsService;
+use App\Support\MarketplaceMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -127,8 +127,22 @@ class SiteSettingsController extends Controller
             }
         }
 
-        $path = $request->file('image')->store('site-settings/' . $data['group'], 'public');
-        $url  = Storage::disk('public')->url($path);
+        $path = MarketplaceMedia::storePublicPreservingExtension(
+            $request->file('image'),
+            'site-settings/' . $data['group'],
+        );
+
+        if (! $path) {
+            throw ValidationException::withMessages([
+                'image' => __('site_settings.upload_failed'),
+            ]);
+        }
+
+        $url = MarketplaceMedia::publicUrl($path);
+
+        if ($url) {
+            $this->persistUploadedImageSetting($data['group'], $data['key'], $url, $request->user()->id);
+        }
 
         return ['url' => $url, 'path' => $path];
     }
@@ -213,6 +227,74 @@ class SiteSettingsController extends Controller
             'social_image_url' => 'nullable|string|max:500',
             'email_logo_url' => 'nullable|string|max:500',
         ])->validate();
+    }
+
+    private function persistUploadedImageSetting(string $group, string $key, string $url, ?int $userId): void
+    {
+        $svc = app(SiteSettingsService::class);
+        $persistKey = $this->persistableImageSettingKey($group, $key);
+
+        if ($persistKey) {
+            $svc->set($persistKey, $url, $userId);
+
+            if ($persistKey === 'branding.logo_url') {
+                $this->cascadePrimaryLogo($svc, $url, $userId);
+            }
+
+            return;
+        }
+
+        if ($group === 'homepage' && preg_match('/^([a-z0-9_]+)-image_url$/', $key, $matches)) {
+            $sections = (array) $svc->get('homepage.sections', []);
+            $sectionKey = $matches[1];
+            $current = (array) ($sections[$sectionKey] ?? []);
+            $sections[$sectionKey] = array_merge($current, ['image_url' => $url]);
+            $svc->set('homepage.sections', $sections, $userId);
+        }
+    }
+
+    private function persistableImageSettingKey(string $group, string $key): ?string
+    {
+        $allowed = [
+            'branding' => [
+                'logo_url',
+                'logo_dark_url',
+                'logo_compact_url',
+                'favicon_url',
+                'social_image_url',
+                'email_logo_url',
+            ],
+            'seo' => [
+                'default_og_image',
+            ],
+        ];
+
+        if (isset($allowed[$group]) && in_array($key, $allowed[$group], true)) {
+            return "{$group}.{$key}";
+        }
+
+        return null;
+    }
+
+    private function cascadePrimaryLogo(SiteSettingsService $svc, string $url, ?int $userId): void
+    {
+        $rawBranding = $svc->groupRaw('branding');
+        $fallbackTargets = [
+            'logo_dark_url',
+            'logo_compact_url',
+            'email_logo_url',
+            'social_image_url',
+            'favicon_url',
+        ];
+
+        foreach ($fallbackTargets as $target) {
+            $current = (string) ($rawBranding[$target] ?? '');
+            $default = (string) config("site.defaults.branding.{$target}", '');
+
+            if ($current === '' || $current === $default) {
+                $svc->set("branding.{$target}", $url, $userId);
+            }
+        }
     }
 
     private function validateAppearance(array $data): array

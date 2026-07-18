@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
+import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageContainer, PageHeader } from '@/Components/Layout/PageContainer';
 import type { SharedProps } from '@/types/inertia';
@@ -26,6 +27,7 @@ interface Props extends SharedProps {
 type GroupName = 'branding' | 'appearance' | 'header' | 'homepage'
                 | 'footer' | 'contact' | 'social' | 'seo' | 'mobile'
                 | 'vendor_intelligence';
+type HomepageSectionSettings = Record<string, JsonValue>;
 
 const GROUPS: GroupName[] = [
     'branding', 'appearance', 'header', 'homepage',
@@ -126,6 +128,25 @@ function GroupEditor({ group, values, sectionsRegistry }: GroupEditorProps) {
         values as LooseSiteSettingsFormData,
     );
 
+    const updateField = (key: string, value: JsonValue) => {
+        if (group === 'branding' && key === 'logo_url' && typeof value === 'string') {
+            const next: LooseSiteSettingsFormData = { ...data, logo_url: value };
+
+            for (const target of ['logo_dark_url', 'logo_compact_url', 'email_logo_url', 'social_image_url', 'favicon_url']) {
+                const current = typeof next[target] === 'string' ? next[target] as string : '';
+
+                if (current === '' || current === DEFAULT_BRAND_MEDIA[target]) {
+                    next[target] = value;
+                }
+            }
+
+            setData(next);
+            return;
+        }
+
+        setData(key, value);
+    };
+
     const handleSave = () => post(`/admin/site-settings/${group}`);
 
     const handleReset = () => {
@@ -143,7 +164,7 @@ function GroupEditor({ group, values, sectionsRegistry }: GroupEditorProps) {
                         group={group}
                         fieldKey={key}
                         value={val}
-                        onChange={(v) => { setData(key, v); }}
+                        onChange={(v) => { updateField(key, v); }}
                         sectionsRegistry={sectionsRegistry}
                     />
                 ))}
@@ -172,6 +193,14 @@ function GroupEditor({ group, values, sectionsRegistry }: GroupEditorProps) {
     );
 }
 
+const DEFAULT_BRAND_MEDIA: Record<string, string> = {
+    logo_dark_url: '/images/logo-dark.svg',
+    logo_compact_url: '/images/logo-compact.svg',
+    email_logo_url: '/images/logo.svg',
+    social_image_url: '/images/og-default.png',
+    favicon_url: '/favicon.ico',
+};
+
 interface FieldEditorProps {
     group: string;
     fieldKey: string;
@@ -180,8 +209,47 @@ interface FieldEditorProps {
     sectionsRegistry: SectionsRegistry;
 }
 
-function FieldEditor({ group, fieldKey, value, onChange }: FieldEditorProps) {
-    const label = fieldKey.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+function FieldEditor({ group, fieldKey, value, onChange, sectionsRegistry }: FieldEditorProps) {
+    const label = fieldLabel(group, fieldKey);
+
+    if (group === 'homepage' && fieldKey === 'section_order' && Array.isArray(value)) {
+        return (
+            <div>
+                <label className="block text-sm font-medium text-slate-800 mb-1">{label}</label>
+                <input
+                    type="text"
+                    value={value.join(', ')}
+                    onChange={(e) => {
+                        onChange(e.target.value.split(',').map((item) => item.trim()).filter(Boolean));
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm font-mono"
+                    data-testid={`${group}-${fieldKey}`}
+                />
+            </div>
+        );
+    }
+
+    if (group === 'homepage' && fieldKey === 'sections' && isRecord(value)) {
+        return (
+            <HomepageSectionsEditor
+                value={value}
+                sectionsRegistry={sectionsRegistry}
+                onChange={onChange}
+            />
+        );
+    }
+
+    if (isImageField(group, fieldKey, value)) {
+        return (
+            <ImageUrlEditor
+                group={group}
+                fieldKey={fieldKey}
+                label={label}
+                value={(value as string) ?? ''}
+                onChange={onChange}
+            />
+        );
+    }
 
     // Translatable: value is { en, ar, ... }
     if (isTranslatableValue(value)) {
@@ -302,6 +370,271 @@ function FieldEditor({ group, fieldKey, value, onChange }: FieldEditorProps) {
     );
 }
 
+function HomepageSectionsEditor({
+    value,
+    sectionsRegistry,
+    onChange,
+}: {
+    value: Record<string, JsonValue>;
+    sectionsRegistry: SectionsRegistry;
+    onChange: (v: JsonValue) => void;
+}) {
+    const updateSection = (sectionKey: string, next: HomepageSectionSettings) => {
+        onChange({ ...value, [sectionKey]: next });
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-slate-800 mb-2">Homepage sections</label>
+            <div className="space-y-3">
+                {Object.keys(sectionsRegistry).map((sectionKey) => {
+                    const current = isRecord(value[sectionKey])
+                        ? value[sectionKey] as HomepageSectionSettings
+                        : { ...(sectionsRegistry[sectionKey]?.default_settings ?? {}) };
+                    const title = sectionKey.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+
+                    return (
+                        <div key={sectionKey} className="border border-slate-200 rounded-md p-3 space-y-3">
+                            <label className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-semibold text-slate-800">{title}</span>
+                                <input
+                                    type="checkbox"
+                                    checked={(current.enabled as boolean | undefined) ?? true}
+                                    onChange={(e) => updateSection(sectionKey, { ...current, enabled: e.target.checked })}
+                                    className="h-4 w-4 accent-indigo-600"
+                                    data-testid={`homepage-section-${sectionKey}-enabled`}
+                                />
+                            </label>
+
+                            {'heading' in current && isTranslatableValue(current.heading) && (
+                                <TranslatableTextInputs
+                                    group="homepage"
+                                    fieldKey={`${sectionKey}-heading`}
+                                    label="Heading"
+                                    value={current.heading as Record<string, string>}
+                                    onChange={(next) => updateSection(sectionKey, { ...current, heading: next })}
+                                />
+                            )}
+
+                            {'subheading' in current && isTranslatableValue(current.subheading) && (
+                                <TranslatableTextInputs
+                                    group="homepage"
+                                    fieldKey={`${sectionKey}-subheading`}
+                                    label="Subheading"
+                                    value={current.subheading as Record<string, string>}
+                                    onChange={(next) => updateSection(sectionKey, { ...current, subheading: next })}
+                                />
+                            )}
+
+                            {'image_url' in current && (
+                                <ImageUrlEditor
+                                    group="homepage"
+                                    fieldKey={`${sectionKey}-image_url`}
+                                    label="Image"
+                                    value={(current.image_url as string) ?? ''}
+                                    onChange={(next) => updateSection(sectionKey, { ...current, image_url: next })}
+                                />
+                            )}
+
+                            {'cta_url' in current && (
+                                <TextInput
+                                    group="homepage"
+                                    fieldKey={`${sectionKey}-cta_url`}
+                                    label="CTA URL"
+                                    value={(current.cta_url as string) ?? ''}
+                                    onChange={(next) => updateSection(sectionKey, { ...current, cta_url: next })}
+                                />
+                            )}
+
+                            {'cta_label' in current && isTranslatableValue(current.cta_label) && (
+                                <TranslatableTextInputs
+                                    group="homepage"
+                                    fieldKey={`${sectionKey}-cta_label`}
+                                    label="CTA label"
+                                    value={current.cta_label as Record<string, string>}
+                                    onChange={(next) => updateSection(sectionKey, { ...current, cta_label: next })}
+                                />
+                            )}
+
+                            {'limit' in current && typeof current.limit === 'number' && (
+                                <NumberInput
+                                    group="homepage"
+                                    fieldKey={`${sectionKey}-limit`}
+                                    label="Limit"
+                                    value={current.limit}
+                                    onChange={(next) => updateSection(sectionKey, { ...current, limit: next })}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function ImageUrlEditor({
+    group,
+    fieldKey,
+    label,
+    value,
+    onChange,
+}: {
+    group: string;
+    fieldKey: string;
+    label: string;
+    value: string;
+    onChange: (v: JsonValue) => void;
+}) {
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const upload = async (file: File | null) => {
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('group', group);
+        formData.append('key', fieldKey);
+
+        setUploading(true);
+        setError(null);
+
+        try {
+            const response = await axios.post<{ url: string }>('/admin/site-settings/upload-image', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            onChange(response.data.url);
+        } catch {
+            setError('Upload failed.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-slate-800 mb-1">{label}</label>
+            <div className="grid gap-2 sm:grid-cols-[96px_1fr]">
+                <div className="h-20 w-24 rounded-md border border-slate-200 bg-slate-50 overflow-hidden grid place-items-center">
+                    {value ? (
+                        <img src={value} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                        <span className="text-xs text-slate-400">No image</span>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                        data-testid={`${group}-${fieldKey}`}
+                    />
+                    <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon"
+                        onChange={(e) => void upload(e.currentTarget.files?.[0] ?? null)}
+                        disabled={uploading}
+                        className="block w-full text-sm text-slate-600 file:me-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200 disabled:opacity-50"
+                        data-testid={`${group}-${fieldKey}-upload`}
+                    />
+                    {error && <p className="text-xs text-rose-600">{error}</p>}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function TextInput({
+    group,
+    fieldKey,
+    label,
+    value,
+    onChange,
+}: {
+    group: string;
+    fieldKey: string;
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+}) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-slate-800 mb-1">{label}</label>
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                data-testid={`${group}-${fieldKey}`}
+            />
+        </div>
+    );
+}
+
+function NumberInput({
+    group,
+    fieldKey,
+    label,
+    value,
+    onChange,
+}: {
+    group: string;
+    fieldKey: string;
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+}) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-slate-800 mb-1">{label}</label>
+            <input
+                type="number"
+                value={value}
+                onChange={(e) => onChange(Number.parseInt(e.target.value, 10) || 0)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                data-testid={`${group}-${fieldKey}`}
+            />
+        </div>
+    );
+}
+
+function TranslatableTextInputs({
+    group,
+    fieldKey,
+    label,
+    value,
+    onChange,
+}: {
+    group: string;
+    fieldKey: string;
+    label: string;
+    value: Record<string, string>;
+    onChange: (v: Record<string, string>) => void;
+}) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-slate-800 mb-1">{label}</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(['en', 'ar'] as const).map((lang) => (
+                    <div key={lang}>
+                        <span className="text-xs text-slate-500 uppercase">{lang}</span>
+                        <input
+                            type="text"
+                            value={value[lang] ?? ''}
+                            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                            onChange={(e) => onChange({ ...value, [lang]: e.target.value })}
+                            className="w-full mt-0.5 px-3 py-2 border border-slate-300 rounded-md text-sm"
+                            data-testid={`${group}-${fieldKey}-${lang}`}
+                        />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function isTranslatableValue(v: unknown): boolean {
     return (
         v !== null &&
@@ -309,4 +642,33 @@ function isTranslatableValue(v: unknown): boolean {
         !Array.isArray(v) &&
         'en' in (v as Record<string, unknown>)
     );
+}
+
+function isRecord(v: unknown): v is Record<string, JsonValue> {
+    return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+function isImageField(group: string, fieldKey: string, value: JsonValue): boolean {
+    if (typeof value !== 'string') return false;
+    if (group === 'branding' && fieldKey.endsWith('_url')) return true;
+    if (group === 'seo' && fieldKey.includes('image')) return true;
+    if (group === 'homepage' && fieldKey.includes('image')) return true;
+    if (group === 'footer' && fieldKey.includes('image')) return true;
+    if (group === 'social' && fieldKey.includes('image')) return true;
+    return false;
+}
+
+function fieldLabel(group: string, fieldKey: string): string {
+    const labels: Record<string, string> = {
+        'branding.logo_url': 'Universal brand image',
+        'branding.logo_dark_url': 'Dark logo override',
+        'branding.logo_compact_url': 'Compact logo override',
+        'branding.email_logo_url': 'Email logo override',
+        'branding.social_image_url': 'Social sharing image override',
+        'branding.favicon_url': 'Favicon override',
+        'seo.default_og_image': 'Default social sharing image',
+    };
+
+    return labels[`${group}.${fieldKey}`]
+        ?? fieldKey.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }

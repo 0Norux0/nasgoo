@@ -18,6 +18,8 @@ class Setting extends Model
         'is_encrypted',
         'is_public',
         'description',
+        'updated_by',
+        'is_translatable',
     ];
 
     protected function casts(): array
@@ -26,6 +28,7 @@ class Setting extends Model
             'value'        => 'array', // JSON-encoded in DB
             'is_encrypted' => 'boolean',
             'is_public'    => 'boolean',
+            'is_translatable' => 'boolean',
         ];
     }
 

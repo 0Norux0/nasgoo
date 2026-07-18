@@ -84,6 +84,21 @@ function toCard(p: FeaturedProduct): ProductCardProduct {
     };
 }
 
+function localizedSetting(value: unknown, locale = 'en'): string {
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    if (value && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        const localized = record[locale] ?? record.en;
+
+        return typeof localized === 'string' ? localized : '';
+    }
+
+    return '';
+}
+
 export default function Welcome({ phase, health, featured_products, personalization }: WelcomeProps) {
     const { app, marketplace, auth, top_categories, siteSettings } =
         usePage<SharedProps & WelcomeProps>().props as SharedProps & WelcomeProps;
@@ -105,9 +120,27 @@ export default function Welcome({ phase, health, featured_products, personalizat
     // Full reordering by section_order is deferred (documented in v11B.3.3
     // report's Limitations section) — this release makes enable/disable work,
     // which is the immediately-useful admin capability.
-    const homepageSections = (siteSettings?.homepage?.sections as Record<string, { enabled?: boolean }> | undefined) ?? {};
+    const homepageSections = (siteSettings?.homepage?.sections as Record<string, ({ enabled?: boolean } & Record<string, unknown>)> | undefined) ?? {};
     const isSectionEnabled = (key: string): boolean =>
         (homepageSections[key]?.enabled ?? true) === true;
+    const heroSettings = homepageSections.hero ?? {};
+    const customBannerSettings = homepageSections.custom_banner ?? {};
+    const heroHeading = localizedSetting(heroSettings.heading, app.locale) || t('home.hero.title_line1');
+    const heroSubheading = localizedSetting(heroSettings.subheading, app.locale) || t('home.hero.subtitle', { name: app.name });
+    const heroCtaLabel = localizedSetting(heroSettings.cta_label, app.locale) || t('home.hero.cta_shop');
+    const heroCtaUrl = typeof heroSettings.cta_url === 'string' && heroSettings.cta_url !== ''
+        ? heroSettings.cta_url
+        : '/products';
+    const heroImageUrl = typeof heroSettings.image_url === 'string' && heroSettings.image_url !== ''
+        ? heroSettings.image_url
+        : null;
+    const customBannerImage = typeof customBannerSettings.image_url === 'string' && customBannerSettings.image_url !== ''
+        ? customBannerSettings.image_url
+        : null;
+    const customBannerHeading = localizedSetting(customBannerSettings.heading, app.locale);
+    const customBannerCtaUrl = typeof customBannerSettings.cta_url === 'string' && customBannerSettings.cta_url !== ''
+        ? customBannerSettings.cta_url
+        : null;
 
     const allHealthy =
         health.database && health.redis && health.meilisearch && health.storage;
@@ -134,17 +167,17 @@ export default function Welcome({ phase, health, featured_products, personalizat
                             </Badge>
 
                             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
-                                {t('home.hero.title_line1')}<br />
+                                {heroHeading}<br />
                                 <span className="text-accent-300">{t('home.hero.title_line2')}</span>
                             </h1>
 
                             <p className="mt-5 text-lg lg:text-xl text-brand-100 max-w-2xl leading-relaxed">
-                                {t('home.hero.subtitle', { name: app.name })}
+                                {heroSubheading}
                             </p>
 
                             <div className="mt-8 flex flex-wrap gap-3">
-                                <Button href="/products" variant="accent" size="lg" trailingIcon={<ArrowRight size={18} aria-hidden="true" />}>
-                                    {t('home.hero.cta_shop')}
+                                <Button href={heroCtaUrl} variant="accent" size="lg" trailingIcon={<ArrowRight size={18} aria-hidden="true" />}>
+                                    {heroCtaLabel}
                                 </Button>
                                 <Button
                                     href="/services"
@@ -173,35 +206,64 @@ export default function Welcome({ phase, health, featured_products, personalizat
                             </div>
                         </div>
 
-                        {/* Hero illustration column — abstract composition (no copyrighted imagery) */}
+                        {/* Hero media */}
                         <div className="hidden lg:block lg:col-span-5">
                             <div className="relative">
                                 <div className="absolute inset-0 bg-gradient-to-br from-accent-400/20 to-transparent rounded-3xl blur-2xl" aria-hidden="true" />
                                 <Card variant="elevated" padding="lg" className="relative shadow-hero rotate-2 hover:rotate-0 transition-transform duration-300">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="size-12 rounded-xl bg-accent-100 grid place-items-center">
-                                            <Package size={22} className="text-accent-700" aria-hidden="true" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-slate-600">{t('home.hero.featured_today')}</p>
-                                            <p className="font-semibold text-slate-900">{t('home.hero.premium_selection')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {[1, 2, 3, 4].map((i) => (
-                                            <div key={i} className="aspect-square rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" aria-hidden="true" />
-                                        ))}
-                                    </div>
-                                    <div className="mt-4 flex items-center justify-between text-sm">
-                                        <span className="text-slate-600">{t('home.hero.across_categories', { count: top_categories.length })}</span>
-                                        <span className="font-semibold text-accent-700">{t('home.hero.view_all')}</span>
-                                    </div>
+                                    {heroImageUrl ? (
+                                        <img
+                                            src={heroImageUrl}
+                                            alt=""
+                                            className="aspect-[4/3] w-full rounded-xl object-cover"
+                                            data-testid="homepage-hero-image"
+                                        />
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="size-12 rounded-xl bg-accent-100 grid place-items-center">
+                                                    <Package size={22} className="text-accent-700" aria-hidden="true" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-600">{t('home.hero.featured_today')}</p>
+                                                    <p className="font-semibold text-slate-900">{t('home.hero.premium_selection')}</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {[1, 2, 3, 4].map((i) => (
+                                                    <div key={i} className="aspect-square rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" aria-hidden="true" />
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 flex items-center justify-between text-sm">
+                                                <span className="text-slate-600">{t('home.hero.across_categories', { count: top_categories.length })}</span>
+                                                <span className="font-semibold text-accent-700">{t('home.hero.view_all')}</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </Card>
                             </div>
                         </div>
                     </div>
                 </Container>
             </section>
+
+            {isSectionEnabled('custom_banner') && customBannerImage && (
+                <section className="bg-white" data-testid="homepage-custom-banner">
+                    <Container className="py-8">
+                        <Link
+                            href={customBannerCtaUrl ?? '#'}
+                            className="relative block overflow-hidden rounded-2xl border border-slate-200"
+                        >
+                            <img src={customBannerImage} alt="" className="h-56 w-full object-cover sm:h-72" />
+                            {customBannerHeading && (
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+                                    <p className="max-w-2xl text-2xl font-bold text-white">{customBannerHeading}</p>
+                                </div>
+                            )}
+                        </Link>
+                    </Container>
+                </section>
+            )}
 
             {/* ─────────── TRUST INDICATORS ─────────── */}
             <section

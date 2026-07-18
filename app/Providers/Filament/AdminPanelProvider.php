@@ -50,6 +50,13 @@ class AdminPanelProvider extends PanelProvider
             // Without this the page existed but was unfindable from
             // the Filament sidebar (the developer's confirmed bug).
             ->navigationItems([
+                \Filament\Navigation\NavigationItem::make('Site design')
+                    ->url('/admin/site-settings')
+                    ->icon('heroicon-o-photo')
+                    ->group('Configuration')
+                    ->sort(0)
+                    ->visible(fn (): bool => auth()->user()?->hasRole('super_admin') ?? false)
+                    ->openUrlInNewTab(false),
                 \Filament\Navigation\NavigationItem::make('Reports Dashboard')
                     ->url('/admin/reports')
                     ->icon('heroicon-o-chart-bar')

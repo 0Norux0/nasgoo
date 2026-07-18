@@ -103,12 +103,14 @@ class SiteSettingsService
         $merged = array_merge($defaults, $raw);
 
         // Resolve translatable values to the active locale for the OUT view
-        return array_map(function ($v) use ($locale) {
+        $resolved = array_map(function ($v) use ($locale) {
             if (is_array($v) && array_key_exists('en', $v)) {
                 return $v[$locale] ?? $v['en'] ?? null;
             }
             return $v;
         }, $merged);
+
+        return $this->normalizeGroup($group, $resolved);
     }
 
     /**
@@ -264,6 +266,54 @@ class SiteSettingsService
         }
 
         return $payload;
+    }
+
+    /**
+     * Normalize public settings so one primary brand image can feed every
+     * logo-like surface unless that surface has an explicit override.
+     *
+     * @param  array<string, mixed> $values
+     * @return array<string, mixed>
+     */
+    private function normalizeGroup(string $group, array $values): array
+    {
+        if ($group === 'branding') {
+            $primaryLogo = $this->filledString($values['logo_url'] ?? null);
+
+            if ($primaryLogo) {
+                foreach (['logo_dark_url', 'logo_compact_url', 'email_logo_url', 'social_image_url', 'favicon_url'] as $key) {
+                    $default = (string) config("site.defaults.branding.{$key}", '');
+                    $current = $this->filledString($values[$key] ?? null);
+
+                    if (! $current || $current === $default) {
+                        $values[$key] = $primaryLogo;
+                    }
+                }
+            }
+        }
+
+        if ($group === 'seo') {
+            $defaultOg = $this->filledString($values['default_og_image'] ?? null);
+            $brandingOg = $this->filledString($this->group('branding')['social_image_url'] ?? null);
+            $configuredDefaultOg = (string) config('site.defaults.seo.default_og_image', '');
+
+            if ((! $defaultOg || $defaultOg === $configuredDefaultOg) && $brandingOg) {
+                $values['default_og_image'] = $brandingOg;
+            }
+        }
+
+        return $values;
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     /**

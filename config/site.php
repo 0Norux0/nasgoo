@@ -68,7 +68,14 @@ return [
         'homepage' => [
             'section_order' => ['hero', 'trust', 'personalization', 'categories', 'featured', 'services'],
             'sections'      => [
-                'hero'            => ['enabled' => true,  'heading' => ['en' => 'Welcome', 'ar' => 'مرحباً']],
+                'hero'            => [
+                    'enabled' => true,
+                    'heading' => ['en' => 'Welcome', 'ar' => 'مرحباً'],
+                    'subheading' => ['en' => '', 'ar' => ''],
+                    'image_url' => '',
+                    'cta_url' => '/products',
+                    'cta_label' => ['en' => 'Shop now', 'ar' => 'تسوق الآن'],
+                ],
                 'trust'           => ['enabled' => true],
                 'personalization' => ['enabled' => true],
                 'categories'      => ['enabled' => true, 'limit' => 12],

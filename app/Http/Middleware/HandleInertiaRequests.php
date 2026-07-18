@@ -83,12 +83,21 @@ class HandleInertiaRequests extends Middleware
             // The React layouts read `seo.*` and emit <Head> meta tags.
             'seo' => function () use ($request) {
                 $perPage = (array) ($request->attributes->get('seo') ?? []);
-                $appName = (string) config('app.name', 'Marketplace');
-                $defaultTitle = $appName;
-                $defaultDesc = (string) config(
+                try {
+                    $settings = app(\App\Services\Settings\SiteSettingsService::class);
+                    $branding = $settings->group('branding');
+                    $seoSettings = $settings->group('seo');
+                } catch (\Throwable $e) {
+                    $branding = (array) config('site.defaults.branding', []);
+                    $seoSettings = (array) config('site.defaults.seo', []);
+                }
+
+                $appName = (string) (($branding['site_name'] ?? '') ?: config('app.name', 'Marketplace'));
+                $defaultTitle = (string) (($seoSettings['default_title'] ?? '') ?: $appName);
+                $defaultDesc = (string) (($seoSettings['default_description'] ?? '') ?: config(
                     'marketplace.seo_default_description',
                     'Multi-vendor marketplace for products and services.'
-                );
+                ));
                 $canonical = $perPage['canonical'] ?? $request->fullUrl();
                 $merged = array_merge([
                     'title'           => $defaultTitle,
@@ -97,7 +106,7 @@ class HandleInertiaRequests extends Middleware
                     'site_name'       => $appName,
                     'locale'          => app()->getLocale(),
                     'og_type'         => 'website',
-                    'og_image'        => null,
+                    'og_image'        => $seoSettings['default_og_image'] ?? $branding['social_image_url'] ?? null,
                     'twitter_card'    => 'summary_large_image',
                     'noindex'         => false,   // public pages default to indexable
                     'structured_data' => null,    // a single JSON-LD blob or array of blobs

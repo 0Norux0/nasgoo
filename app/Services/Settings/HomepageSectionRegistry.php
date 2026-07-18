@@ -40,6 +40,7 @@ class HomepageSectionRegistry
                     'enabled' => true,
                     'heading' => ['en' => 'Welcome', 'ar' => 'مرحباً'],
                     'subheading' => ['en' => '', 'ar' => ''],
+                    'image_url' => '',
                     'cta_url' => '/products',
                     'cta_label' => ['en' => 'Shop now', 'ar' => 'تسوق الآن'],
                 ],

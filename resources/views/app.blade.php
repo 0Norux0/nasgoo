@@ -9,6 +9,28 @@
 
     <title inertia>{{ config('app.name', 'Marketplace') }}</title>
 
+    @php
+        try {
+            $branding = app(\App\Services\Settings\SiteSettingsService::class)->group('branding');
+            $seoDefaults = app(\App\Services\Settings\SiteSettingsService::class)->group('seo');
+        } catch (\Throwable $e) {
+            \Log::warning('site media head settings failed (defensive catch)', ['err' => $e->getMessage()]);
+            $branding = (array) config('site.defaults.branding', []);
+            $seoDefaults = (array) config('site.defaults.seo', []);
+        }
+        $faviconUrl = (string) ($branding['favicon_url'] ?? '');
+        $socialImageUrl = (string) (($seoDefaults['default_og_image'] ?? '') ?: ($branding['social_image_url'] ?? ''));
+    @endphp
+    @if($faviconUrl !== '')
+        <link rel="icon" href="{{ e($faviconUrl) }}">
+        <link rel="shortcut icon" href="{{ e($faviconUrl) }}">
+        <link rel="apple-touch-icon" href="{{ e($faviconUrl) }}">
+    @endif
+    @if($socialImageUrl !== '')
+        <meta property="og:image" content="{{ e($socialImageUrl) }}">
+        <meta name="twitter:image" content="{{ e($socialImageUrl) }}">
+    @endif
+
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet">
     {{-- Arabic-friendly font --}}

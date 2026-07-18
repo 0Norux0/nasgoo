@@ -42,6 +42,7 @@ export default function AdminLayout({ title, children }: Props) {
                         <nav className="hidden md:flex gap-4 text-sm">
                             <a href="/admin" className="text-slate-600 hover:text-slate-900">Filament panel</a>
                             <Link href="/admin/reports" className="text-indigo-700 font-medium">Reports</Link>
+                            <Link href="/admin/site-settings" className="text-slate-600 hover:text-slate-900">Site settings</Link>
                         </nav>
                     </div>
                     <div className="flex items-center gap-3">
@@ -76,6 +77,7 @@ export default function AdminLayout({ title, children }: Props) {
                         <nav className="flex flex-col py-2 px-4 text-sm" onClick={() => setMobileOpen(false)}>
                             <a href="/admin" className="py-2 text-slate-600">Filament panel</a>
                             <Link href="/admin/reports" className="py-2 text-indigo-700 font-medium">Reports</Link>
+                            <Link href="/admin/site-settings" className="py-2 text-slate-600">Site settings</Link>
                         </nav>
                     </div>
                 )}
