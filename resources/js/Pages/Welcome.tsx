@@ -99,17 +99,10 @@ function localizedSetting(value: unknown, locale = 'en'): string {
     return '';
 }
 
-export default function Welcome({ phase, health, featured_products, personalization }: WelcomeProps) {
-    const { app, marketplace, auth, top_categories, siteSettings } =
+export default function Welcome({ featured_products, personalization }: WelcomeProps) {
+    const { app, auth, top_categories, siteSettings } =
         usePage<SharedProps & WelcomeProps>().props as SharedProps & WelcomeProps;
     const user = auth.user;
-    // Phase 10 v10.16 §4 — null-safe permissions normalize.
-    // v10.11 §2 PERFORMANCE removed the permissions array from the global
-    // Inertia share. Welcome.tsx had been doing
-    //   user[dot]permissions[dot]length
-    // — which read `.length` on `undefined` and crashed React. Safe pattern
-    // (preserved across v11A's redesign): always read defensively.
-    const userPermissions = user?.permissions ?? [];
     const t = useT();
 
     // Phase 11B.3 v11B.3.3 §8 — respect siteSettings.homepage.sections.*.enabled
@@ -134,6 +127,11 @@ export default function Welcome({ phase, health, featured_products, personalizat
     const heroImageUrl = typeof heroSettings.image_url === 'string' && heroSettings.image_url !== ''
         ? heroSettings.image_url
         : null;
+    const heroCardImages = Array.isArray(heroSettings.card_images)
+        ? heroSettings.card_images
+            .filter((image): image is string => typeof image === 'string' && image.trim() !== '')
+            .slice(0, 4)
+        : [];
     const customBannerImage = typeof customBannerSettings.image_url === 'string' && customBannerSettings.image_url !== ''
         ? customBannerSettings.image_url
         : null;
@@ -141,9 +139,6 @@ export default function Welcome({ phase, health, featured_products, personalizat
     const customBannerCtaUrl = typeof customBannerSettings.cta_url === 'string' && customBannerSettings.cta_url !== ''
         ? customBannerSettings.cta_url
         : null;
-
-    const allHealthy =
-        health.database && health.redis && health.meilisearch && health.storage;
 
     return (
         <StorefrontLayout title="Welcome">
@@ -230,9 +225,25 @@ export default function Welcome({ phase, health, featured_products, personalizat
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
-                                                {[1, 2, 3, 4].map((i) => (
-                                                    <div key={i} className="aspect-square rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" aria-hidden="true" />
-                                                ))}
+                                                {[0, 1, 2, 3].map((index) => {
+                                                    const image = heroCardImages[index];
+
+                                                    return image ? (
+                                                        <img
+                                                            key={index}
+                                                            src={image}
+                                                            alt=""
+                                                            className="aspect-square w-full rounded-xl object-cover"
+                                                            data-testid="homepage-hero-card-image"
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            key={index}
+                                                            className="aspect-square rounded-xl bg-gradient-to-br from-slate-100 to-slate-200"
+                                                            aria-hidden="true"
+                                                        />
+                                                    );
+                                                })}
                                             </div>
                                             <div className="mt-4 flex items-center justify-between text-sm">
                                                 <span className="text-slate-600">{t('home.hero.across_categories', { count: top_categories.length })}</span>
@@ -552,45 +563,6 @@ export default function Welcome({ phase, health, featured_products, personalizat
                     </Container>
                 </section>
             )}
-
-            {/* ─────────── Dev/diagnostic strip (low priority) ─────────── */}
-            {/* Phase 11A — health probe info moved into a discreet status strip
-                rather than a top-of-page feature. Still visible to dev for diagnostics
-                but no longer dominates the customer's first impression.
-                v11A.3 contrast fix: parent <details> uses text-slate-700 (~9.2:1 on
-                slate-100) instead of text-slate-500 (~4.2:1, FAILS WCAG AA). Child
-                elements inherit this color unless explicitly overridden. */}
-            <section className="bg-slate-100 border-t border-slate-200" data-testid="homepage-system-status">
-                <Container className="py-4">
-                    <details className="text-xs text-slate-700">
-                        <summary className="cursor-pointer hover:text-slate-900 inline-flex items-center gap-2">
-                            <span className={'size-2 rounded-full ' + (allHealthy ? 'bg-accent-500' : 'bg-gold-500')} aria-hidden="true" />
-                            System status: {allHealthy ? 'All systems operational' : 'Some services experiencing issues'} · {phase}
-                        </summary>
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            {[
-                                ['Database', health.database],
-                                ['Cache', health.redis],
-                                ['Search', health.meilisearch],
-                                ['Storage', health.storage],
-                            ].map(([label, ok]) => (
-                                <div key={label as string} className="flex items-center gap-2">
-                                    <span className={'size-2 rounded-full ' + (ok ? 'bg-accent-500' : 'bg-rose-500')} aria-hidden="true" />
-                                    <span className="text-slate-800">{label as string}</span>
-                                </div>
-                            ))}
-                        </div>
-                        {user && userPermissions.length > 0 && (
-                            <p className="mt-3 text-slate-800">
-                                Signed in as <strong>{user.email}</strong> · {userPermissions.length} permission(s) granted
-                            </p>
-                        )}
-                        <p className="mt-2 text-slate-700">
-                            Marketplace: {marketplace.default_currency} default; {marketplace.guest_browsing ? 'Guest browsing' : 'Auth required to browse'} · {marketplace.guest_checkout ? 'Guest checkout' : 'Sign-in required to checkout'} · {app.locale.toUpperCase()} ({app.direction})
-                        </p>
-                    </details>
-                </Container>
-            </section>
         </StorefrontLayout>
     );
 }

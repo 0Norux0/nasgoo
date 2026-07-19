@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" fill="#6366f1"/>
+  <circle cx="300" cy="250" r="120" fill="rgba(255,255,255,0.18)"/>
+  <text x="300" y="300" font-family="system-ui, sans-serif" font-size="160" fill="#ffffff" text-anchor="middle" font-weight="700">W</text>
+  <text x="300" y="430" font-family="system-ui, sans-serif" font-size="30" fill="rgba(255,255,255,0.9)" text-anchor="middle">Wireless Bluetooth Headpho</text>
+</svg>

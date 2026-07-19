@@ -392,6 +392,7 @@ function HomepageSectionsEditor({
                         ? value[sectionKey] as HomepageSectionSettings
                         : { ...(sectionsRegistry[sectionKey]?.default_settings ?? {}) };
                     const title = sectionKey.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+                    const cardImages = Array.isArray(current.card_images) ? current.card_images : null;
 
                     return (
                         <div key={sectionKey} className="border border-slate-200 rounded-md p-3 space-y-3">
@@ -434,6 +435,35 @@ function HomepageSectionsEditor({
                                     value={(current.image_url as string) ?? ''}
                                     onChange={(next) => updateSection(sectionKey, { ...current, image_url: next })}
                                 />
+                            )}
+
+                            {cardImages && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-800 mb-2">
+                                        Hero card images
+                                    </label>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                        {([0, 1, 2, 3] as const).map((index) => (
+                                            <ImageUrlEditor
+                                                key={index}
+                                                group="homepage"
+                                                fieldKey={`${sectionKey}-card_images-${index}`}
+                                                label={`Image ${index + 1}`}
+                                                value={typeof cardImages[index] === 'string' ? cardImages[index] : ''}
+                                                onChange={(next) => {
+                                                    const images = [...cardImages] as JsonValue[];
+
+                                                    while (images.length < 4) {
+                                                        images.push('');
+                                                    }
+
+                                                    images[index] = next;
+                                                    updateSection(sectionKey, { ...current, card_images: images.slice(0, 4) });
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
                             )}
 
                             {'cta_url' in current && (

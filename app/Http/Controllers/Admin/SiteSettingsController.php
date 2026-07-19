@@ -250,6 +250,25 @@ class SiteSettingsController extends Controller
             $current = (array) ($sections[$sectionKey] ?? []);
             $sections[$sectionKey] = array_merge($current, ['image_url' => $url]);
             $svc->set('homepage.sections', $sections, $userId);
+            return;
+        }
+
+        if ($group === 'homepage' && preg_match('/^([a-z0-9_]+)-card_images-(\d+)$/', $key, $matches)) {
+            $sections = (array) $svc->get('homepage.sections', []);
+            $sectionKey = $matches[1];
+            $index = (int) $matches[2];
+            $current = (array) ($sections[$sectionKey] ?? []);
+            $images = array_values((array) ($current['card_images'] ?? []));
+
+            for ($i = 0; $i < 4; $i++) {
+                $images[$i] = (string) ($images[$i] ?? '');
+            }
+
+            if ($index >= 0 && $index < 4) {
+                $images[$index] = $url;
+                $sections[$sectionKey] = array_merge($current, ['card_images' => array_slice($images, 0, 4)]);
+                $svc->set('homepage.sections', $sections, $userId);
+            }
         }
     }
 

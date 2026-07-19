@@ -73,6 +73,7 @@ return [
                     'heading' => ['en' => 'Welcome', 'ar' => 'مرحباً'],
                     'subheading' => ['en' => '', 'ar' => ''],
                     'image_url' => '',
+                    'card_images' => ['', '', '', ''],
                     'cta_url' => '/products',
                     'cta_label' => ['en' => 'Shop now', 'ar' => 'تسوق الآن'],
                 ],
