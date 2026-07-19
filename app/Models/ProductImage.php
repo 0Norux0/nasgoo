@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\MarketplaceMedia;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,14 +39,27 @@ class ProductImage extends Model
      */
     public function getUrlAttribute(): ?string
     {
-        if (empty($this->path)) {
+        $path = MarketplaceMedia::publicPathOrExternalUrl($this->path);
+
+        if (empty($path)) {
             return null;
         }
+
         // Absolute URLs (e.g. already-CDN paths) pass through untouched.
-        if (str_starts_with($this->path, 'http://') || str_starts_with($this->path, 'https://')) {
-            return $this->path;
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
         }
-        return Storage::disk(config('marketplace.media_disk', 'public'))->url($this->path);
+
+        if (config('marketplace.media_disk', 'public') === 'public') {
+            return MarketplaceMedia::publicUrl($path);
+        }
+
+        return Storage::disk(config('marketplace.media_disk', 'public'))->url($path);
+    }
+
+    public function setPathAttribute(?string $value): void
+    {
+        $this->attributes['path'] = MarketplaceMedia::publicPathOrExternalUrl($value);
     }
 
     /** @return BelongsTo<Product, ProductImage> */

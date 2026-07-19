@@ -399,23 +399,25 @@ class DemoSeeder extends Seeder
                 ]),
             );
 
-            // Attach a generated SVG image so the demo product shows a real,
-            // displayable image (not a broken icon). Stored on the media disk
-            // so it resolves at /storage/... after `storage:link`.
-            if ($product->images()->count() === 0) {
-                $color = $palette[$i % count($palette)];
-                $path  = "products/demo/{$slug}.svg";
-                Storage::disk(config('marketplace.media_disk', 'public'))
-                    ->put($path, $this->placeholderSvg($data['name'], $color));
+            // Always ensure the demo file exists. A server deploy can keep the
+            // database rows while losing storage/app/public, which otherwise
+            // leaves valid product_images.path values pointing at missing files.
+            $color = $palette[$i % count($palette)];
+            $disk = config('marketplace.media_disk', 'public');
+            $path = "products/demo/{$slug}.svg";
 
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'path'       => $path,
+            if (! Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->put($path, $this->placeholderSvg($data['name'], $color));
+            }
+
+            $product->images()->firstOrCreate(
+                ['path' => $path],
+                [
                     'alt_text'   => $data['name'],
                     'position'   => 1,
-                    'is_primary' => true,
-                ]);
-            }
+                    'is_primary' => ! $product->images()->where('is_primary', true)->exists(),
+                ],
+            );
         }
 
         // 1 draft (vendor still editing)
@@ -475,20 +477,21 @@ class DemoSeeder extends Seeder
                 ],
             );
 
-            // Image
-            if ($product->images()->doesntExist()) {
-                $disk = config('marketplace.media_disk', 'public');
-                $path = "products/demo/{$product->slug}.svg";
-                \Illuminate\Support\Facades\Storage::disk($disk)
-                    ->put($path, $this->placeholderSvg($product->name, '#f59e0b'));
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'path'       => $path,
+            $disk = config('marketplace.media_disk', 'public');
+            $path = "products/demo/{$product->slug}.svg";
+
+            if (! Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->put($path, $this->placeholderSvg($product->name, '#f59e0b'));
+            }
+
+            $product->images()->firstOrCreate(
+                ['path' => $path],
+                [
                     'alt_text'   => $product->name,
                     'position'   => 1,
-                    'is_primary' => true,
-                ]);
-            }
+                    'is_primary' => ! $product->images()->where('is_primary', true)->exists(),
+                ],
+            );
 
             $this->command?->info('Second demo vendor (Coastal Goods) seeded with 1 published product for multi-vendor checkout testing.');
         }

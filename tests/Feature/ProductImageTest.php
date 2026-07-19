@@ -90,6 +90,21 @@ it('v5.4: url accessor passes through absolute URLs untouched', function () {
     expect($image->url)->toBe('https://cdn.example.com/a.jpg');
 });
 
+it('normalizes public product image paths before storing them', function () {
+    [, $vendor] = approvedVendorUser();
+    $product = Product::factory()->published()->create(['vendor_id' => $vendor->id]);
+
+    $image = ProductImage::create([
+        'product_id' => $product->id,
+        'path' => 'https://nasgo.co/storage/products/demo/stainless-steel-water-bottle.svg',
+        'position' => 1,
+        'is_primary' => true,
+    ]);
+
+    expect($image->path)->toBe('products/demo/stainless-steel-water-bottle.svg');
+    expect($image->url)->toBe('/storage/products/demo/stainless-steel-water-bottle.svg');
+});
+
 it('v5.4: url accessor returns null when there is no path', function () {
     $image = new ProductImage(['path' => '']);
     expect($image->url)->toBeNull();
