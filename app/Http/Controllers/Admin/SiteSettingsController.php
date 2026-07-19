@@ -52,6 +52,12 @@ class SiteSettingsController extends Controller
             $raw = $svc->groupRaw($g);
             $defaults = (array) config("site.defaults.{$g}", []);
             $payload[$g] = array_merge($defaults, $raw);
+
+            if ($g === 'homepage') {
+                $defaultSections = (array) ($defaults['sections'] ?? []);
+                $rawSections = (array) ($raw['sections'] ?? []);
+                $payload[$g]['sections'] = array_replace_recursive($defaultSections, $rawSections);
+            }
         }
 
         return Inertia::render('Admin/SiteSettings/Index', [

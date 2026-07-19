@@ -9,6 +9,8 @@ use App\Services\Settings\SiteSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
 
@@ -143,6 +145,43 @@ it('§38.11 super_admin can view admin settings page', function () {
             ->has('sections_registry')
             ->etc()
         );
+});
+
+it('§38.11a homepage hero card image defaults appear for existing saved homepage settings', function () {
+    $a = p11b31_admin();
+    app(SiteSettingsService::class)->set('homepage.sections', [
+        'hero' => [
+            'enabled' => true,
+            'heading' => ['en' => 'Saved hero', 'ar' => ''],
+        ],
+    ], $a->id);
+
+    test()->actingAs($a)->get('/admin/site-settings')
+        ->assertOk()
+        ->assertInertia(fn ($pg) => $pg
+            ->where('settings.homepage.sections.hero.card_images', ['', '', '', ''])
+            ->has('sections_registry.hero.default_settings.card_images', 4)
+            ->etc()
+        );
+});
+
+it('§38.11b homepage hero card image upload persists to the selected slot', function () {
+    Storage::fake('public');
+    $a = p11b31_admin();
+
+    $response = test()->actingAs($a)->post('/admin/site-settings/upload-image', [
+        'group' => 'homepage',
+        'key' => 'hero-card_images-2',
+        'image' => UploadedFile::fake()->image('hero-slot.png', 320, 320),
+    ]);
+
+    $response->assertOk()->assertJsonStructure(['url', 'path']);
+
+    $url = $response->json('url');
+    $sections = app(SiteSettingsService::class)->get('homepage.sections');
+
+    expect($url)->toStartWith('/storage/site-settings/homepage/');
+    expect($sections['hero']['card_images'])->toBe(['', '', $url, '']);
 });
 
 it('§38.12 admin can update site name', function () {

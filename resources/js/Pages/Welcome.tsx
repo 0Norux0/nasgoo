@@ -127,11 +127,12 @@ export default function Welcome({ featured_products, personalization }: WelcomeP
     const heroImageUrl = typeof heroSettings.image_url === 'string' && heroSettings.image_url !== ''
         ? heroSettings.image_url
         : null;
-    const heroCardImages = Array.isArray(heroSettings.card_images)
-        ? heroSettings.card_images
-            .filter((image): image is string => typeof image === 'string' && image.trim() !== '')
-            .slice(0, 4)
-        : [];
+    const heroCardImageSettings = Array.isArray(heroSettings.card_images) ? heroSettings.card_images : [];
+    const heroCardImages = [0, 1, 2, 3].map((index) => {
+        const image = heroCardImageSettings[index];
+
+        return typeof image === 'string' && image.trim() !== '' ? image : null;
+    });
     const customBannerImage = typeof customBannerSettings.image_url === 'string' && customBannerSettings.image_url !== ''
         ? customBannerSettings.image_url
         : null;

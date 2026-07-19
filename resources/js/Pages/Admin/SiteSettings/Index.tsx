@@ -104,6 +104,7 @@ export default function SiteSettingsIndex() {
                 </nav>
 
                 <GroupEditor
+                    key={activeGroup}
                     group={activeGroup}
                     values={settings[activeGroup] ?? {}}
                     sectionsRegistry={sections_registry}
