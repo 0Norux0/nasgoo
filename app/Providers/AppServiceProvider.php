@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Vite;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->ensureRuntimeDirectoriesExist();
+
         // Prevent N+1 queries in non-production
         Model::shouldBeStrict(! app()->isProduction());
 
@@ -228,5 +231,23 @@ class AppServiceProvider extends ServiceProvider
                 ]);
             }
         });
+    }
+
+    private function ensureRuntimeDirectoriesExist(): void
+    {
+        foreach ([
+            storage_path('app/public'),
+            storage_path('framework/cache'),
+            storage_path('framework/cache/data'),
+            storage_path('framework/sessions'),
+            storage_path('framework/testing'),
+            storage_path('framework/views'),
+            storage_path('logs'),
+            base_path('bootstrap/cache'),
+        ] as $path) {
+            if (! File::isDirectory($path)) {
+                File::makeDirectory($path, 0755, true);
+            }
+        }
     }
 }
